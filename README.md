@@ -1,152 +1,73 @@
-Software Architecture Document (SAD)
-Project Name: System Health Monitoring & Automated Backup Solution
-1. Introduction
-Objective:
-This project automates system health monitoring and backup processes in Linux. It:
+# Software Architecture Document (SAD) for Linux-Based Automation System
 
-Monitors CPU, memory, and disk usage, logging alerts if thresholds are exceeded.
+## 1. Introduction
 
-Backs up important files to a remote server via rsync.
+### 1.1 Objective
+This project aims to automate system backups and health monitoring on Linux-based systems using shell scripting and system utilities. The automation system ensures data integrity by regularly synchronizing directories to a remote location and monitoring critical system resources such as CPU, memory, and disk usage.
 
-Logs activities to /var/log/system_health.log and /var/log/backup.log.
+### 1.2 Scope
+The automation system consists of two primary scripts:
+- *Backup Automation Script*: Utilizes rsync to sync files between local and remote directories and logs success or failure.
+- *System Health Monitoring Script*: Monitors CPU, memory, and disk usage, logs running processes, and alerts the user if thresholds are exceeded.
 
-2. Software Design Principles
-2.1 Abstraction
-The system has two primary functionalities:
+## 2. Software Design Principles
 
-System Health Monitoring – Captures system resource usage and logs alerts.
+### 2.1 Abstraction
+- *Backup Functionality*: High-level backup operation abstracts the underlying rsync commands.
+- *Monitoring Functionality*: Abstracts system health checks into distinct operations for CPU, memory, and disk.
 
-Automated Backup – Transfers files securely using rsync.
+### 2.2 Encapsulation
+- Each script encapsulates related operations: backup tasks are handled by one script, and system monitoring is managed separately.
+- Logs are stored in predefined locations to maintain integrity.
 
-2.2 Encapsulation
-Each function is grouped into separate scripts:
+### 2.3 Modularity
+- The backup script and monitoring script operate independently, making them reusable in different setups.
+- Each script performs a single responsibility, ensuring maintainability.
 
-monitor.sh – Monitors system health and logs alerts.
+### 2.4 Cohesion & Coupling
+- *High Cohesion*: Each script performs a well-defined function.
+- *Low Coupling*: The scripts do not depend on each other and can run independently.
 
-backup.sh – Automates file backup.
+## 3. System Design
 
-2.3 Modularity
-The system consists of independent modules:
+### 3.1 Data Flow Diagram (DFD)
+#### Level 0 - High-Level Data Flow
+1. User initiates the backup script.
+2. The script syncs files to the remote server.
+3. The script logs success/failure messages.
+4. The monitoring script checks CPU, memory, and disk usage periodically.
+5. Alerts are logged if thresholds are exceeded.
 
-monitor.sh → Collects CPU, memory, and disk statistics.
+### 3.2 Class Diagram (For OOP Implementation in Python - Optional)
+- BackupManager: Manages file synchronization.
+- SystemMonitor: Monitors system health parameters.
+- Logger: Handles logging operations.
 
-backup.sh → Automates file backup to a remote server.
+## 4. Deployment Design
 
-2.4 Cohesion & Coupling
-High Cohesion: Each script is responsible for a single functionality.
+### 4.1 Installation Instructions
 
-Low Coupling: The scripts interact only through log files.
+#### Backup Script Deployment
+- Place the script in /usr/local/bin/backup.sh
+- Set execution permission:
+  bash
+  chmod +x /usr/local/bin/backup.sh
+  
+- Schedule with crontab -e:
+  bash
+  0 2 * * * /usr/local/bin/backup.sh
+  
 
-3. System Design
-3.1 Data Flow Diagram (DFD)
-System Monitoring (monitor.sh)
+#### System Monitoring Script Deployment
+- Place the script in /usr/local/bin/system_health.sh
+- Set execution permission:
+  bash
+  chmod +x /usr/local/bin/system_health.sh
+  
+- Schedule with crontab -e:
+  bash
+  */10 * * * * /usr/local/bin/system_health.sh
+  
 
-Fetches CPU, memory, and disk usage.
-
-Logs alerts to /var/log/system_health.log.
-
-Automated Backup (backup.sh)
-
-Syncs files using rsync.
-
-Logs success/failure in /var/log/backup.log.
-
-3.2 Deployment Design
-Installation & Execution
-bash
-Copy
-Edit
-# Clone repository
-git clone https://github.com/your-repo/system-health-monitor.git
-
-# Make scripts executable
-chmod +x monitor.sh backup.sh
-
-# Configure backup settings in backup.sh
-nano backup.sh  
-
-# Run system monitoring
-./monitor.sh  
-
-# Run backup script manually or via cron job
-./backup.sh  
-
-# (Optional) Automate execution via cron
-crontab -e  
-# Add:
-*/5 * * * * /path/to/monitor.sh  
-0 2 * * * /path/to/backup.sh  
-4. Shell Script Implementation
-4.1 monitor.sh (System Health Monitoring)
-Checks CPU, memory, and disk usage.
-
-Logs alerts if thresholds (80%) are exceeded.
-
-Records running processes in /var/log/system_health.log.
-
-Code Snippet:
-bash
-Copy
-Edit
-#!/bin/bash
-
-CPU_THRESHOLD=80
-MEMORY_THRESHOLD=80
-DISK_THRESHOLD=80
-
-CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
-if (( $(echo "$CPU_USAGE > $CPU_THRESHOLD" | bc -l) )); then
-    echo "ALERT: CPU usage high: $CPU_USAGE%" >> /var/log/system_health.log
-fi
-
-MEMORY_USAGE=$(free | grep Mem | awk '{print $3/$2 * 100.0}')
-if (( $(echo "$MEMORY_USAGE > $MEMORY_THRESHOLD" | bc -l) )); then
-    echo "ALERT: Memory usage high: $MEMORY_USAGE%" >> /var/log/system_health.log
-fi
-
-DISK_USAGE=$(df / | grep / | awk '{print $5}' | sed 's/%//g')
-if [ $DISK_USAGE -gt $DISK_THRESHOLD ]; then
-    echo "ALERT: Disk space low: $DISK_USAGE%" >> /var/log/system_health.log
-fi
-
-ps aux >> /var/log/system_health.log
-echo "Health check completed at $(date)" >> /var/log/system_health.log
-4.2 backup.sh (Automated Backup Solution)
-Uses rsync to sync files to a remote server.
-
-Logs success/failure in /var/log/backup.log.
-
-Code Snippet:
-bash
-Copy
-Edit
-#!/bin/bash
-
-SOURCE_DIR="/path/to/source_directory"
-REMOTE_USER="remote_user"
-REMOTE_HOST="remote_host"
-REMOTE_DIR="/path/to/remote_directory"
-LOG_FILE="/var/log/backup.log"
-
-rsync -avz --delete $SOURCE_DIR $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR
-
-if [ $? -eq 0 ]; then
-    echo "Backup succeeded at $(date)" >> $LOG_FILE
-else
-    echo "Backup failed at $(date)" >> $LOG_FILE
-fi
-5. Performance Testing & Risk Management
-5.1 Performance Testing
-Tools Used:
-
-top, htop – Monitor CPU & memory usage.
-
-time – Measure script execution time.
-
-5.2 Risk Analysis
-Risk	Type	Mitigation Strategy
-Incorrect log parsing	Operational	Test grep and awk patterns before deployment.
-Backup failure	Technical	Ensure correct rsync setup & SSH keys.
-High CPU usage	Performance	Optimize loops & reduce log frequency.
-6. Conclusion
-This System Health Monitoring & Backup Automation project provides a robust, modular, and automated solution to track system performance and secure important files efficiently.
+## 5. Conclusion
+This automation system provides an efficient way to manage backups and monitor system health. By adhering to software engineering design principles, it ensures modularity, maintainability, and reliability in a Linux environment.
